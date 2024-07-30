@@ -67,7 +67,9 @@ void findRedirect(char *args[]) {               // リダイレクトの指示�
   args[j] = NULL;
 }
 
-void redirect(int fd, char *path, int flag) {   // リダイレクト処理をする
+void redirect(int fd, char *path, int flag) {  
+  
+  // リダイレクト処理をする
   //
   // externalCom 関数のどこかから呼び出される
   //
@@ -77,7 +79,14 @@ void redirect(int fd, char *path, int flag) {   // リダイレクト処理を�
   //        入力の場合 O_RDONLY
   //        出力の場合 O_WRONLY|O_TRUNC|O_CREAT
   //
+  close(fd);
+  int nfd = open(path, flag, 0644);
+  if(nfd < 0) {
+    perror(path);
+    exit(1);
+  }
 }
+
 
 void externalCom(char *args[]) {                // 外部コマンドを実行する
   int pid, status;
@@ -86,6 +95,12 @@ void externalCom(char *args[]) {                // 外部コマンドを実行�
     exit(1);                                    //     非常事態，親を終了
   }
   if (pid==0) {                                 //   子プロセスなら
+    if(ifile != NULL) {
+      redirect(0, ifile, O_RDONLY);
+    }  
+    if(ofile != NULL) {
+      redirect(1, ofile,  O_WRONLY|O_TRUNC|O_CREAT);
+    }                            
     execvp(args[0], args);                      //     コマンドを実行
     perror(args[0]);
     exit(1);
@@ -130,3 +145,75 @@ int main() {
   return 0;
 }
 
+/*
+noguchiai@noguchinoMacBook-Air kadai12-i21noguti % make
+cc -D_GNU_SOURCE -Wall -std=c99 -o myshell myshell.c
+noguchiai@noguchinoMacBook-Air kadai12-i21noguti % ./myshell
+Command: printenv LANG
+ja_JP.UTF-8
+Command: printenv LC_TIME
+Command: setenv LC_TIME C
+Command: printenv LC_TIME
+C
+Command: setenv LC_TIME ja_JP
+Command: printenv LC_TIME
+ja_JP
+Command: unsetenv LC_TIME            
+Command: printenv LC_TIME
+Command: ls
+Makefile	README.md	README.pdf	myshell		myshell.c
+Command: echo aaa bbb > a.txt
+Command: ls
+Makefile	README.md	README.pdf	a.txt		myshell		myshell.c
+Command: cat a.txt
+aaa bbb
+Command: 
+Command: ls > a.txt
+Command: cat a.txt  
+Makefile
+README.md
+README.pdf
+a.txt
+myshell
+myshell.c
+Command: echo ccc > b.txt c.txt
+Command: ls
+Makefile	README.md	README.pdf	a.txt		b.txt		myshell		myshell.c
+Command: cat b.txt
+ccc c.txt
+Command: ls > a.txt
+Command: cat a.txt
+Makefile
+README.md
+README.pdf
+a.txt
+b.txt
+myshell
+myshell.c
+Command: grep txt < a.txt
+a.txt
+b.txt
+Command: grep < a.txt txt
+a.txt
+b.txt
+Command: grep abc < c.txt
+c.txt: No such file or directory
+Command: cat < dir
+dir: No such file or directory
+Command: mkdir dir
+Command: ls > dir/a.txt
+Command: cat a.txt
+Makefile
+README.md
+README.pdf
+a.txt
+b.txt
+myshell
+myshell.c
+Command: ls . dir
+.:
+Makefile	README.md	README.pdf	a.txt		b.txt		dir		myshell		myshell.c
+
+dir:
+a.txt
+*/
